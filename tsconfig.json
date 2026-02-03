@@ -11,6 +11,8 @@
     "importHelpers": true,
     "isolatedModules": true,
     "strictNullChecks": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "lib": [
       "DOM",
       "ES5",
@@ -20,5 +22,5 @@
   },
   "include": [
     "src/**/*.ts"
-, "templates/index.ts"  ]
+  ]
 }

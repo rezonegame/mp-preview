@@ -1,21 +1,21 @@
-// 使用 require 导入 JSON 文件以避免 TypeScript 的 JSON 模块解析问题
-const defaultTemplate = require('./default.json');
-const minimalTemplate = require('./minimal.json');
-const scarletTemplate = require('./scarlet.json');
-const orangeTemplate = require('./orange.json');
-const elegantTemplate = require('./elegant.json');
-const darkTemplate = require('./dark.json');
-const academicTemplate = require('./academic.json');
-const yebanTemplate = require('./yeban.json');
-const yebanOrangeTemplate = require('./yeban-orange.json');
-const darkgreenTemplate = require('./darkgreen.json');
-const brownTemplate = require('./brown.json');
+// 使用 import 导入 JSON 文件
+import defaultTemplate from './default.json';
+import minimalTemplate from './minimal.json';
+import scarletTemplate from './scarlet.json';
+import orangeTemplate from './orange.json';
+import elegantTemplate from './elegant.json';
+import darkTemplate from './dark.json';
+import academicTemplate from './academic.json';
+import yebanTemplate from './yeban.json';
+import yebanOrangeTemplate from './yeban-orange.json';
+import darkgreenTemplate from './darkgreen.json';
+import brownTemplate from './brown.json';
 // 新增模板
-const playfulTemplate = require('./playful.json');
-const blackboardTemplate = require('./blackboard.json');
-const adventureTemplate = require('./adventure.json');
-const warmthTemplate = require('./warmth.json');
-const gameuiTemplate = require('./gameui.json');
+import playfulTemplate from './playful.json';
+import blackboardTemplate from './blackboard.json';
+import adventureTemplate from './adventure.json';
+import warmthTemplate from './warmth.json';
+import gameuiTemplate from './gameui.json';
 
 export const templates = {
     default: defaultTemplate,
