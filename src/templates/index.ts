@@ -10,6 +10,12 @@ const yebanTemplate = require('./yeban.json');
 const yebanOrangeTemplate = require('./yeban-orange.json');
 const darkgreenTemplate = require('./darkgreen.json');
 const brownTemplate = require('./brown.json');
+// 新增模板
+const playfulTemplate = require('./playful.json');
+const blackboardTemplate = require('./blackboard.json');
+const adventureTemplate = require('./adventure.json');
+const warmthTemplate = require('./warmth.json');
+const gameuiTemplate = require('./gameui.json');
 
 export const templates = {
     default: defaultTemplate,
@@ -23,4 +29,10 @@ export const templates = {
     'yeban-orange': yebanOrangeTemplate,
     darkgreen: darkgreenTemplate,
     brown: brownTemplate,
+    // 新增导出
+    playful: playfulTemplate,
+    blackboard: blackboardTemplate,
+    adventure: adventureTemplate,
+    warmth: warmthTemplate,
+    gameui: gameuiTemplate,
 };

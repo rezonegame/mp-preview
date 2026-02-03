@@ -46,6 +46,9 @@ export interface Template {
             };
             block: string;
             inline: string;
+            syntax?: {
+                [key: string]: string;
+            };
         };
         image: string;
         link: string;
@@ -166,6 +169,30 @@ export class TemplateManager {
                 header.querySelectorAll('.mp-code-dot').forEach((dot, index) => {
                     dot.setAttribute('style', `${styles.code.header.dot}; background-color: ${styles.code.header.colors[index]};`);
                 });
+            }
+
+            // 应用代码语法高亮
+            if (styles.code.syntax) {
+                const syntaxStyles = styles.code.syntax;
+                const codeBlock = el.querySelector('code');
+                if (codeBlock) {
+                    // 查找所有带有 token 类的 span
+                    codeBlock.querySelectorAll('span[class*="token"]').forEach((span) => {
+                        const htmlSpan = span as HTMLElement;
+                        const classes = htmlSpan.className.split(/\s+/);
+                        
+                        // 遍历所有类名，查找对应的样式
+                        classes.forEach(cls => {
+                            if (cls === 'token') return;
+                            if (syntaxStyles[cls]) {
+                                // 获取现有样式
+                                const currentStyle = htmlSpan.getAttribute('style') || '';
+                                // 合并样式，避免覆盖
+                                htmlSpan.setAttribute('style', `${currentStyle}; ${syntaxStyles[cls]}`.replace(';;', ';'));
+                            }
+                        });
+                    });
+                }
             }
         });
 
