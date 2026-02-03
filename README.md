@@ -30,10 +30,8 @@
 6. 点击安装并启用插件
 
 ### 手动安装
-1. 下载最新版本的 release 文件：https://github.com/Yeban8090/mp-preview/releases
-2. 解压后将文件夹复制到 Obsidian 插件目录：`{vault}/.obsidian/plugins/`
-3. 重启 Obsidian
-4. 在设置中启用插件
+1. 先安装插件市场中的BRAT插件。
+2. 然后用 https://github.com/rezonegame/mp-preview 安装最新版本即可。
 
 ## 使用技巧
 - 使用锁定按钮(🔒)可以暂停实时预览，避免编辑大文档时频繁刷新
@@ -47,28 +45,8 @@
 - 简体中文
 
 ## 支持作者
-如果这个插件对你有所帮助，可以考虑请作者喝杯咖啡 ☕：
-
-<div align="center">
-  <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
-    <div style="text-align: center; margin: 1px;">
-      <strong>微信支付</strong><br/>
-      <img src="src/assets/donate/wechat_pay.png" alt="微信支付" width="180px" style="margin-top: 10px;">
-    </div>
-    <div style="text-align: center; margin: 1px;">
-      <strong>支付宝</strong><br/>
-      <img src="src/assets/donate/alipay.png" alt="支付宝" width="180px" style="margin-top: 10px;">
-    </div>
-    <div style="text-align: center; margin: 1px;">
-      <strong>Buy Me a Coffee</strong><br/>
-      <a href="https://ko-fi.com/bruceyeban" style="margin-top: 10px; display: inline-block;">
-        <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-支持作者-yellow?style=for-the-badge&logo=ko-fi" alt="Buy Me a Coffee" />
-      </a>
-    </div>
-  </div>
-</div>
-
-您的支持是我持续改进这个插件的动力！
+ 原插件由 @Yeban8090 制作。
+ 我只更新一些我自己的想增加的功能。
 
 ## 许可证
 MIT License。查看 [LICENSE](LICENSE) 获取更多信息。
