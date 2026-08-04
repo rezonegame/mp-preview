@@ -12,9 +12,14 @@ test('layout snapshots preserve the user-selected local typesetting settings', (
   assert.match(view, /contentHash: this\.hashText\(content\)/);
 });
 
-test('local export supports HTML fragments and fixed-ratio image segments', () => {
+test('local export renders full article content and fixed-ratio image segments', () => {
   assert.match(view, /exportHtmlFragment/);
   assert.match(view, /text\/html;charset=utf-8/);
   assert.match(view, /exportSegmentedImages/);
-  assert.match(view, /canvas\.width \* 4 \/ 3/);
+  assert.match(view, /createExportSnapshot/);
+  assert.match(view, /querySelector\('\.mp-content-section'\)/);
+  assert.match(view, /snapshot\.scrollHeight/);
+  assert.match(view, /snapshot\.width \* 4 \/ 3/);
+  assert.match(view, /snapshot\.element,[\s\S]*sourceY/);
+  assert.doesNotMatch(view, /html2canvas\(this\.previewEl/);
 });

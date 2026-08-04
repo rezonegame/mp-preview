@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.8.2
+
+- Fixed long-image and segmented-image export to render a complete article
+  snapshot instead of only the visible part of the scrollable preview pane.
+- Segmented export now renders each 1:1.33 image directly from that complete
+  snapshot, avoiding viewport cropping and an oversized intermediate canvas.
+
 ## 3.8.1
 
 - Fixed repeated scene filters in the theme gallery when a scene contains two

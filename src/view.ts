@@ -392,39 +392,7 @@ export class MPView extends ItemView {
             cls: 'mp-export-button'
         });
 
-        // 导出逻辑
-        exportImageButton.addEventListener('click', async () => {
-            if (this.previewEl) {
-                exportImageButton.disabled = true;
-                const originalText = exportImageButton.innerText;
-                exportImageButton.setText('生成中...');
-
-                try {
-                    // @ts-ignore
-                    const canvas = await html2canvas(this.previewEl, {
-                        useCORS: true,
-                        allowTaint: true,
-                        backgroundColor: '#ffffff', // 强制白色背景，避免透明
-                        scale: 2 // 提高清晰度
-                    });
-
-                    const link = document.createElement('a');
-                    link.download = `yh-mp-preview-${Date.now()}.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-
-                    exportImageButton.setText('导出成功');
-                } catch (error) {
-                    console.error('导出失败:', error);
-                    exportImageButton.setText('导出失败');
-                } finally {
-                    setTimeout(() => {
-                        exportImageButton.disabled = false;
-                        exportImageButton.setText(originalText);
-                    }, 2000);
-                }
-            }
-        });
+        exportImageButton.addEventListener('click', async () => this.exportLongImage(exportImageButton));
 
         // 添加复制按钮点击事件
         const exportHtmlButton = primaryRow.createEl('button', {
@@ -612,6 +580,135 @@ export class MPView extends ItemView {
         return (hash >>> 0).toString(16);
     }
 
+    /**
+     * Creates an unconstrained copy of the article. The live preview is a
+     * scroll container, so capturing it directly only includes its viewport.
+     */
+    private async createExportSnapshot(): Promise<{
+        element: HTMLElement;
+        width: number;
+        height: number;
+        cleanup: () => void;
+    }> {
+        const content = this.previewEl.querySelector('.mp-content-section') as HTMLElement | null;
+        if (!content) throw new Error('Preview content is not available');
+
+        const bounds = content.getBoundingClientRect();
+        const width = Math.max(1, Math.ceil(bounds.width));
+        const snapshotHost = document.createElement('div');
+        snapshotHost.className = 'mp-preview-area mp-export-snapshot';
+        snapshotHost.style.cssText = [
+            'position: fixed',
+            'left: -100000px',
+            'top: 0',
+            `width: ${width}px`,
+            'height: auto',
+            'min-height: 0',
+            'margin: 0',
+            'padding: 0',
+            'overflow: visible',
+            'background: #ffffff',
+            'border: 0',
+            'box-shadow: none',
+            'pointer-events: none',
+        ].join(';');
+
+        const snapshot = content.cloneNode(true) as HTMLElement;
+        const computed = window.getComputedStyle(content);
+        snapshot.style.cssText += `;${[
+            `width: ${width}px`,
+            'max-width: none',
+            'height: auto',
+            'max-height: none',
+            'min-height: 0',
+            'overflow: visible',
+            'box-sizing: border-box',
+            `font-family: ${computed.fontFamily}`,
+            `font-size: ${computed.fontSize}`,
+            `line-height: ${computed.lineHeight}`,
+            `color: ${computed.color}`,
+            'background: #ffffff',
+        ].join(';')};`;
+        snapshotHost.appendChild(snapshot);
+        document.body.appendChild(snapshotHost);
+
+        await Promise.all(Array.from(snapshot.querySelectorAll('img')).map((image) => {
+            if (image.complete) return Promise.resolve();
+            return new Promise<void>((resolve) => {
+                image.addEventListener('load', () => resolve(), { once: true });
+                image.addEventListener('error', () => resolve(), { once: true });
+            });
+        }));
+
+        return {
+            element: snapshot,
+            width,
+            height: Math.max(1, Math.ceil(snapshot.scrollHeight)),
+            cleanup: () => snapshotHost.remove(),
+        };
+    }
+
+    private async renderExportCanvas(
+        element: HTMLElement,
+        width: number,
+        height: number,
+        scale: number,
+        y = 0,
+    ): Promise<HTMLCanvasElement> {
+        // @ts-ignore html2canvas has no bundled TypeScript declarations.
+        return html2canvas(element, {
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            scale,
+            x: 0,
+            y,
+            width,
+            height,
+            windowWidth: width,
+            windowHeight: height,
+            scrollX: 0,
+            scrollY: 0,
+        });
+    }
+
+    private async exportLongImage(button: HTMLButtonElement): Promise<void> {
+        const originalText = button.textContent || '导出长图';
+        button.disabled = true;
+        button.setText('生成中...');
+        let cleanup: (() => void) | undefined;
+        try {
+            const snapshot = await this.createExportSnapshot();
+            cleanup = snapshot.cleanup;
+            // Keep the full article in one image while staying below practical
+            // Chromium canvas limits on unusually long notes.
+            const maxDimension = 16384;
+            const maxPixels = 64_000_000;
+            const scale = Math.min(
+                2,
+                maxDimension / snapshot.width,
+                maxDimension / snapshot.height,
+                Math.sqrt(maxPixels / (snapshot.width * snapshot.height)),
+            );
+            const canvas = await this.renderExportCanvas(snapshot.element, snapshot.width, snapshot.height, Math.max(scale, 0.01));
+            const link = document.createElement('a');
+            link.download = `yh-mp-preview-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            if (scale < 2) new Notice('文章较长，已自动降低长图分辨率以完整导出；可使用“导出分段图”获得高清切片。');
+            button.setText('导出成功');
+        } catch (error) {
+            console.error('导出长图失败:', error);
+            button.setText('导出失败');
+        } finally {
+            cleanup?.();
+            setTimeout(() => {
+                button.disabled = false;
+                button.setText(originalText);
+            }, 2000);
+        }
+    }
+
     private async exportHtmlFragment(button: HTMLButtonElement): Promise<void> {
         const contentSection = this.previewEl.querySelector('.mp-content-section') as HTMLElement | null;
         if (!contentSection) return;
@@ -644,24 +741,28 @@ export class MPView extends ItemView {
     private async exportSegmentedImages(button: HTMLButtonElement): Promise<void> {
         const originalText = button.textContent || '导出分段图';
         button.disabled = true;
+        button.setText('生成中...');
+        let cleanup: (() => void) | undefined;
         try {
-            const canvas = await html2canvas(this.previewEl, {
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff',
-                scale: 2,
-            });
-            const segmentHeight = Math.max(1, Math.round(canvas.width * 4 / 3));
-            const total = Math.ceil(canvas.height / segmentHeight);
+            const snapshot = await this.createExportSnapshot();
+            cleanup = snapshot.cleanup;
+            // Render each slice directly from the full article snapshot. This
+            // avoids both viewport cropping and a single oversized canvas.
+            const segmentHeight = Math.max(1, Math.round(snapshot.width * 4 / 3));
+            const total = Math.ceil(snapshot.height / segmentHeight);
+            const exportedAt = Date.now();
             for (let index = 0; index < total; index += 1) {
                 const sourceY = index * segmentHeight;
-                const height = Math.min(segmentHeight, canvas.height - sourceY);
-                const segment = document.createElement('canvas');
-                segment.width = canvas.width;
-                segment.height = height;
-                segment.getContext('2d')?.drawImage(canvas, 0, sourceY, canvas.width, height, 0, 0, canvas.width, height);
+                const height = Math.min(segmentHeight, snapshot.height - sourceY);
+                const segment = await this.renderExportCanvas(
+                    snapshot.element,
+                    snapshot.width,
+                    height,
+                    2,
+                    sourceY,
+                );
                 const link = document.createElement('a');
-                link.download = `yh-mp-preview-${Date.now()}-${index + 1}.png`;
+                link.download = `yh-mp-preview-${exportedAt}-${index + 1}.png`;
                 link.href = segment.toDataURL('image/png');
                 link.click();
             }
@@ -670,6 +771,7 @@ export class MPView extends ItemView {
             console.error('分段图导出失败', error);
             new Notice('分段图导出失败');
         } finally {
+            cleanup?.();
             button.disabled = false;
             button.setText(originalText);
         }

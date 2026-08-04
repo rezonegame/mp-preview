@@ -10960,36 +10960,7 @@ var MPView = class extends import_obsidian4.ItemView {
       text: "\u5BFC\u51FA\u957F\u56FE",
       cls: "mp-export-button"
     });
-    exportImageButton.addEventListener("click", async () => {
-      if (this.previewEl) {
-        exportImageButton.disabled = true;
-        const originalText = exportImageButton.innerText;
-        exportImageButton.setText("\u751F\u6210\u4E2D...");
-        try {
-          const canvas = await (0, import_html2canvas.default)(this.previewEl, {
-            useCORS: true,
-            allowTaint: true,
-            backgroundColor: "#ffffff",
-            // 强制白色背景，避免透明
-            scale: 2
-            // 提高清晰度
-          });
-          const link = document.createElement("a");
-          link.download = `yh-mp-preview-${Date.now()}.png`;
-          link.href = canvas.toDataURL("image/png");
-          link.click();
-          exportImageButton.setText("\u5BFC\u51FA\u6210\u529F");
-        } catch (error) {
-          console.error("\u5BFC\u51FA\u5931\u8D25:", error);
-          exportImageButton.setText("\u5BFC\u51FA\u5931\u8D25");
-        } finally {
-          setTimeout(() => {
-            exportImageButton.disabled = false;
-            exportImageButton.setText(originalText);
-          }, 2e3);
-        }
-      }
-    });
+    exportImageButton.addEventListener("click", async () => this.exportLongImage(exportImageButton));
     const exportHtmlButton = primaryRow.createEl("button", {
       text: "\u5BFC\u51FA HTML",
       cls: "mp-export-button"
@@ -11146,6 +11117,117 @@ var MPView = class extends import_obsidian4.ItemView {
     }
     return (hash >>> 0).toString(16);
   }
+  /**
+   * Creates an unconstrained copy of the article. The live preview is a
+   * scroll container, so capturing it directly only includes its viewport.
+   */
+  async createExportSnapshot() {
+    const content = this.previewEl.querySelector(".mp-content-section");
+    if (!content)
+      throw new Error("Preview content is not available");
+    const bounds = content.getBoundingClientRect();
+    const width = Math.max(1, Math.ceil(bounds.width));
+    const snapshotHost = document.createElement("div");
+    snapshotHost.className = "mp-preview-area mp-export-snapshot";
+    snapshotHost.style.cssText = [
+      "position: fixed",
+      "left: -100000px",
+      "top: 0",
+      `width: ${width}px`,
+      "height: auto",
+      "min-height: 0",
+      "margin: 0",
+      "padding: 0",
+      "overflow: visible",
+      "background: #ffffff",
+      "border: 0",
+      "box-shadow: none",
+      "pointer-events: none"
+    ].join(";");
+    const snapshot = content.cloneNode(true);
+    const computed = window.getComputedStyle(content);
+    snapshot.style.cssText += `;${[
+      `width: ${width}px`,
+      "max-width: none",
+      "height: auto",
+      "max-height: none",
+      "min-height: 0",
+      "overflow: visible",
+      "box-sizing: border-box",
+      `font-family: ${computed.fontFamily}`,
+      `font-size: ${computed.fontSize}`,
+      `line-height: ${computed.lineHeight}`,
+      `color: ${computed.color}`,
+      "background: #ffffff"
+    ].join(";")};`;
+    snapshotHost.appendChild(snapshot);
+    document.body.appendChild(snapshotHost);
+    await Promise.all(Array.from(snapshot.querySelectorAll("img")).map((image) => {
+      if (image.complete)
+        return Promise.resolve();
+      return new Promise((resolve) => {
+        image.addEventListener("load", () => resolve(), { once: true });
+        image.addEventListener("error", () => resolve(), { once: true });
+      });
+    }));
+    return {
+      element: snapshot,
+      width,
+      height: Math.max(1, Math.ceil(snapshot.scrollHeight)),
+      cleanup: () => snapshotHost.remove()
+    };
+  }
+  async renderExportCanvas(element, width, height, scale, y = 0) {
+    return (0, import_html2canvas.default)(element, {
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      scale,
+      x: 0,
+      y,
+      width,
+      height,
+      windowWidth: width,
+      windowHeight: height,
+      scrollX: 0,
+      scrollY: 0
+    });
+  }
+  async exportLongImage(button) {
+    const originalText = button.textContent || "\u5BFC\u51FA\u957F\u56FE";
+    button.disabled = true;
+    button.setText("\u751F\u6210\u4E2D...");
+    let cleanup;
+    try {
+      const snapshot = await this.createExportSnapshot();
+      cleanup = snapshot.cleanup;
+      const maxDimension = 16384;
+      const maxPixels = 64e6;
+      const scale = Math.min(
+        2,
+        maxDimension / snapshot.width,
+        maxDimension / snapshot.height,
+        Math.sqrt(maxPixels / (snapshot.width * snapshot.height))
+      );
+      const canvas = await this.renderExportCanvas(snapshot.element, snapshot.width, snapshot.height, Math.max(scale, 0.01));
+      const link = document.createElement("a");
+      link.download = `yh-mp-preview-${Date.now()}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      if (scale < 2)
+        new import_obsidian4.Notice("\u6587\u7AE0\u8F83\u957F\uFF0C\u5DF2\u81EA\u52A8\u964D\u4F4E\u957F\u56FE\u5206\u8FA8\u7387\u4EE5\u5B8C\u6574\u5BFC\u51FA\uFF1B\u53EF\u4F7F\u7528\u201C\u5BFC\u51FA\u5206\u6BB5\u56FE\u201D\u83B7\u5F97\u9AD8\u6E05\u5207\u7247\u3002");
+      button.setText("\u5BFC\u51FA\u6210\u529F");
+    } catch (error) {
+      console.error("\u5BFC\u51FA\u957F\u56FE\u5931\u8D25:", error);
+      button.setText("\u5BFC\u51FA\u5931\u8D25");
+    } finally {
+      cleanup == null ? void 0 : cleanup();
+      setTimeout(() => {
+        button.disabled = false;
+        button.setText(originalText);
+      }, 2e3);
+    }
+  }
   async exportHtmlFragment(button) {
     const contentSection = this.previewEl.querySelector(".mp-content-section");
     if (!contentSection)
@@ -11176,27 +11258,28 @@ var MPView = class extends import_obsidian4.ItemView {
     }
   }
   async exportSegmentedImages(button) {
-    var _a;
     const originalText = button.textContent || "\u5BFC\u51FA\u5206\u6BB5\u56FE";
     button.disabled = true;
+    button.setText("\u751F\u6210\u4E2D...");
+    let cleanup;
     try {
-      const canvas = await (0, import_html2canvas.default)(this.previewEl, {
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        scale: 2
-      });
-      const segmentHeight = Math.max(1, Math.round(canvas.width * 4 / 3));
-      const total = Math.ceil(canvas.height / segmentHeight);
+      const snapshot = await this.createExportSnapshot();
+      cleanup = snapshot.cleanup;
+      const segmentHeight = Math.max(1, Math.round(snapshot.width * 4 / 3));
+      const total = Math.ceil(snapshot.height / segmentHeight);
+      const exportedAt = Date.now();
       for (let index = 0; index < total; index += 1) {
         const sourceY = index * segmentHeight;
-        const height = Math.min(segmentHeight, canvas.height - sourceY);
-        const segment = document.createElement("canvas");
-        segment.width = canvas.width;
-        segment.height = height;
-        (_a = segment.getContext("2d")) == null ? void 0 : _a.drawImage(canvas, 0, sourceY, canvas.width, height, 0, 0, canvas.width, height);
+        const height = Math.min(segmentHeight, snapshot.height - sourceY);
+        const segment = await this.renderExportCanvas(
+          snapshot.element,
+          snapshot.width,
+          height,
+          2,
+          sourceY
+        );
         const link = document.createElement("a");
-        link.download = `yh-mp-preview-${Date.now()}-${index + 1}.png`;
+        link.download = `yh-mp-preview-${exportedAt}-${index + 1}.png`;
         link.href = segment.toDataURL("image/png");
         link.click();
       }
@@ -11205,6 +11288,7 @@ var MPView = class extends import_obsidian4.ItemView {
       console.error("\u5206\u6BB5\u56FE\u5BFC\u51FA\u5931\u8D25", error);
       new import_obsidian4.Notice("\u5206\u6BB5\u56FE\u5BFC\u51FA\u5931\u8D25");
     } finally {
+      cleanup == null ? void 0 : cleanup();
       button.disabled = false;
       button.setText(originalText);
     }
